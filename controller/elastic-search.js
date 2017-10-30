@@ -1,0 +1,38 @@
+const db = require('../src/db');
+const elasticsearch = require('elasticsearch');
+const Promise = require('bluebird');
+const getBatchTrips = require('./live-trip-generator.js')
+
+const log = console.log.bind(console);
+
+const client = new elasticsearch.Client({
+  host: 'localhost:9200',
+  log: 'trace'
+});
+
+function addToIndex(trip) {
+  return client.index({
+    index: 'trips',
+    type: 'trip',
+    body: trip
+  });
+}
+
+// function closeConnection() {
+//   client.close();
+// }
+
+const liveData = n => Promise.resolve()
+  .then(() => getBatchTrips(n))
+  .then(results => results.forEach((trip) => {
+    db('requests').insert(trip)
+      .then(() => {
+        console.log('addindex', trip);
+        addToIndex(trip);
+      });
+  }));
+
+setInterval(() => liveData(5), 1000);
+
+
+// db('requests').insert(makeliveTrip(trip)
